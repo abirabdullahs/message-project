@@ -21,7 +21,7 @@ const initializeSocket = (io) => {
       io.emit('user:online', { userId: socket.userId });
 
       // Handle message sending
-      socket.on('message:send', async ({ chatId, to, text }) => {
+      socket.on('message:send', async ({ chatId, to, text, messageId }) => {
         try {
           // Check if recipient has blocked the sender
           const recipient = await User.findById(to).select('blockedUsers');
@@ -30,25 +30,34 @@ const initializeSocket = (io) => {
             return;
           }
 
-          const message = new Message({
-            chatId,
-            senderId: socket.userId,
-            receiverId: to,
-            text,
-            createdAt: new Date(),
-            expiresAt: new Date(Date.now() + 60 * 60 * 1000) // 1 hour from now
-          });
+          let message;
+          if (messageId) {
+            // If messageId is provided, find the existing message
+            message = await Message.findById(messageId);
+          } else {
+            // Create new message if no messageId
+            message = new Message({
+              chatId,
+              senderId: socket.userId,
+              receiverId: to,
+              text,
+              createdAt: new Date(),
+              expiresAt: new Date(Date.now() + 60 * 60 * 1000) // 1 hour from now
+            });
+            await message.save();
+          }
 
-          await message.save();
-          
           // Populate sender information
           await message.populate('senderId', 'username avatar');
-
-          // Send to recipient
+          
+          // Send to recipient immediately
           io.to(to).emit('message:receive', message);
           
-          // Send acknowledgment to sender
+          // Send acknowledgment to sender immediately
           socket.emit('message:sent', message);
+          
+          // Broadcast to all clients in the chat room
+          io.to(chatId).emit('message:new', message);
 
           // Set timeout to emit message:removed event when message expires
           setTimeout(() => {
