@@ -25,6 +25,11 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
 
+// Root route (simple welcome message) — prevents 404 on '/'
+app.get('/', (req, res) => {
+  res.status(200).send('TempChat API is running');
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
