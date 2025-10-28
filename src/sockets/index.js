@@ -24,7 +24,7 @@ const initializeSocket = (io) => {
       socket.on('message:send', async ({ chatId, to, text, messageId }) => {
         try {
           // Check if recipient has blocked the sender
-          const recipient = await User.findById(to).select('blockedUsers');
+          const recipient = await User.findById(to).select('blockedUsers chatList');
           if (recipient && recipient.blockedUsers.map(String).includes(String(socket.userId))) {
             socket.emit('error', { message: 'Unable to deliver message: recipient has blocked you' });
             return;
@@ -45,6 +45,22 @@ const initializeSocket = (io) => {
               expiresAt: new Date(Date.now() + 60 * 60 * 1000) // 1 hour from now
             });
             await message.save();
+
+            // Update chat lists for both users
+            const [sender, receiverUpdate] = await Promise.all([
+              User.findById(socket.userId),
+              User.findById(to)
+            ]);
+
+            // Add users to each other's chat lists if not already there
+            if (!sender.chatList.includes(to)) {
+              sender.chatList.push(to);
+              await sender.save();
+            }
+            if (!receiverUpdate.chatList.includes(socket.userId)) {
+              receiverUpdate.chatList.push(socket.userId);
+              await receiverUpdate.save();
+            }
           }
 
           // Populate sender information

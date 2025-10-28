@@ -101,6 +101,75 @@ export const unblockUser = async (req, res) => {
   }
 };
 
+export const followUser = async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ error: 'userId required' });
+
+    const [me, userToFollow] = await Promise.all([
+      User.findById(req.user._id),
+      User.findById(userId)
+    ]);
+
+    if (!me || !userToFollow) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Check if already following
+    if (!me.following.includes(userId)) {
+      me.following.push(userId);
+      userToFollow.followers.push(req.user._id);
+      await Promise.all([me.save(), userToFollow.save()]);
+    }
+
+    res.json({ message: 'User followed successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error', details: error.message });
+  }
+};
+
+export const unfollowUser = async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ error: 'userId required' });
+
+    const [me, userToUnfollow] = await Promise.all([
+      User.findById(req.user._id),
+      User.findById(userId)
+    ]);
+
+    if (!me || !userToUnfollow) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    me.following = me.following.filter(id => String(id) !== String(userId));
+    userToUnfollow.followers = userToUnfollow.followers.filter(
+      id => String(id) !== String(req.user._id)
+    );
+
+    await Promise.all([me.save(), userToUnfollow.save()]);
+    res.json({ message: 'User unfollowed successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error', details: error.message });
+  }
+};
+
+export const getChatList = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id)
+      .populate('chatList', '-password')
+      .select('chatList');
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json(user.chatList);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error', details: error.message });
+  }
+};
+
 export const setNickname = async (req, res) => {
   try {
     const { userId, nickname } = req.body;

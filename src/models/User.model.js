@@ -49,7 +49,19 @@ const UserSchema = new mongoose.Schema({
   lastSeen: {
     type: Date,
     default: Date.now
-  }
+  },
+  following: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  followers: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  chatList: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }]
 }, {
   timestamps: true
 });
